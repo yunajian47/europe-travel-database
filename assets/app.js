@@ -233,39 +233,23 @@ function costEstimate(place) {
   };
 }
 
-function photoSvg(place) {
-  const palette = {
-    landmark: ["#0f766e", "#93c5fd"],
-    museum: ["#1d4ed8", "#bfdbfe"],
-    church: ["#0f766e", "#ccfbf1"],
-    castle: ["#7e22ce", "#e9d5ff"],
-    nature: ["#15803d", "#bbf7d0"],
-    "coast-lake-mountain": ["#0369a1", "#bae6fd"],
-    "thermal-bath": ["#0e7490", "#a5f3fc"],
-    market: ["#be123c", "#fecdd3"],
-    restaurant: ["#b45309", "#fed7aa"],
-    "cafe-dessert": ["#a16207", "#fde68a"],
-    bar: ["#7c3aed", "#ddd6fe"],
-    "local-shop": ["#334155", "#cbd5e1"],
-    "old-town": ["#92400e", "#fef3c7"]
-  }[place.type] || ["#0f766e", "#dff5f0"];
-  const title = escapeHtml(place.name).slice(0, 42);
-  const sub = escapeHtml(`${place.country} / ${place.region}`).slice(0, 48);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480" viewBox="0 0 720 480">
-    <defs>
-      <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-        <stop stop-color="${palette[0]}" offset="0"/>
-        <stop stop-color="${palette[1]}" offset="1"/>
-      </linearGradient>
-    </defs>
-    <rect width="720" height="480" fill="url(#g)"/>
-    <circle cx="590" cy="90" r="90" fill="rgba(255,255,255,.28)"/>
-    <circle cx="92" cy="388" r="128" fill="rgba(255,255,255,.18)"/>
-    <path d="M64 322 C180 210 264 236 344 164 C432 84 524 118 660 52 L660 480 L64 480 Z" fill="rgba(255,255,255,.24)"/>
-    <text x="48" y="250" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="white">${title}</text>
-    <text x="50" y="302" font-family="Arial, sans-serif" font-size="25" fill="rgba(255,255,255,.9)">${sub}</text>
-  </svg>`;
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+function visualMarkup(place, variant = "card") {
+  const title = escapeHtml(place.name);
+  const location = escapeHtml(`${place.country} / ${place.region}`);
+  const label = escapeHtml(place.typeLabel);
+  const initial = escapeHtml(String(place.name || "?").trim().slice(0, 1).toUpperCase());
+  return `
+    <div class="place-visual place-visual-${variant} visual-${escapeHtml(place.type)}" aria-label="${title}">
+      <span class="visual-initial">${initial}</span>
+      <span class="visual-label">${label}</span>
+      <span class="visual-title">${title}</span>
+      <span class="visual-location">${location}</span>
+    </div>
+  `;
+}
+
+function photoSourceMarkup() {
+  return `<p class="photo-credit">圖片：CSS 產生的穩定視覺圖卡，不依賴外部圖片來源，因此不會因熱連結或圖源失效而破圖。</p>`;
 }
 
 function setupMap() {
@@ -387,7 +371,7 @@ function renderCards() {
     const cost = costEstimate(place);
     return `
       <article class="place-card" id="card-${place.id}">
-        <img src="${photoSvg(place)}" alt="${escapeHtml(place.name)}" loading="lazy">
+        ${visualMarkup(place, "card")}
         <div class="card-main">
           <h2 class="card-title">${escapeHtml(place.name)}</h2>
           <div class="meta-line">
@@ -446,7 +430,7 @@ function openPreview(id) {
   if (!place) return;
   const cost = costEstimate(place);
   els.previewContent.innerHTML = `
-    <img class="preview-image" src="${photoSvg(place)}" alt="${escapeHtml(place.name)}">
+    ${visualMarkup(place, "preview")}
     <div class="preview-body">
       <h2>${escapeHtml(place.name)}</h2>
       <div class="meta-line">
@@ -455,6 +439,7 @@ function openPreview(id) {
         <span class="pill rating">★ ${place.rating} · ${formatNumber(place.reviewCount)} 則評論</span>
       </div>
       <p>${escapeHtml(place.description)}</p>
+      ${photoSourceMarkup()}
       <div class="preview-grid">
         <div class="info-box"><span>當地常用貨幣</span><strong>${escapeHtml(cost.local)}</strong></div>
         <div class="info-box"><span>約合新台幣</span><strong>${escapeHtml(cost.twd)}</strong></div>
@@ -535,7 +520,7 @@ function bindEvents(data) {
 
 async function init() {
   setupMap();
-  const response = await fetch(`assets/places.json?v=20260710v2`);
+  const response = await fetch(`assets/places.json?v=20260710v4`);
   const data = await response.json();
   state.places = data.places;
   renderStats();
