@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>歐洲大型旅行資料庫</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIINfQqQbVYzXj4E6p1L4hE7T4iJvuJ1F8w=" crossorigin="">
+  <link rel="stylesheet" href="assets/styles.css?v=20260710v1">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="top-panel">
+      <div>
+        <p class="eyebrow">Europe Travel Database</p>
+        <h1>歐洲大型旅行資料庫</h1>
+        <p class="notice">評分、評論數、營業時間與價格會變動，出發前請以 Google Maps 即時資訊為準。</p>
+      </div>
+      <div class="stats-grid" id="statsGrid"></div>
+    </section>
+
+    <section class="control-panel" aria-label="篩選工具">
+      <label class="search-box">
+        <span>搜尋</span>
+        <input id="searchInput" type="search" placeholder="地名、餐廳名、類型、關鍵字">
+      </label>
+      <label>
+        <span>國家/地區</span>
+        <select id="countryFilter"></select>
+      </label>
+      <label>
+        <span>類型</span>
+        <select id="typeFilter"></select>
+      </label>
+      <label>
+        <span>最低評分</span>
+        <select id="ratingFilter">
+          <option value="0">不限</option>
+          <option value="3.8">3.8+</option>
+          <option value="4.0">4.0+</option>
+          <option value="4.2">4.2+</option>
+          <option value="4.4">4.4+</option>
+          <option value="4.6">4.6+</option>
+          <option value="4.8">4.8+</option>
+        </select>
+      </label>
+      <label>
+        <span>最低評論數</span>
+        <select id="reviewFilter">
+          <option value="0">不限</option>
+          <option value="50">50+</option>
+          <option value="100">100+</option>
+          <option value="300">300+</option>
+          <option value="500">500+</option>
+          <option value="1000">1000+</option>
+          <option value="3000">3000+</option>
+          <option value="10000">10000+</option>
+        </select>
+      </label>
+      <label>
+        <span>排序</span>
+        <select id="sortSelect">
+          <option value="recommended">推薦優先</option>
+          <option value="reviews">評論數高到低</option>
+          <option value="rating">評分高到低</option>
+          <option value="region">地區排序</option>
+        </select>
+      </label>
+      <button id="resetBtn" class="ghost-button" type="button">重設</button>
+    </section>
+
+    <section class="distribution-wrap">
+      <div>
+        <div class="section-title">各國/地區分布</div>
+        <div id="countryChips" class="chip-list"></div>
+      </div>
+      <div>
+        <div class="section-title">類型分布</div>
+        <div id="typeChips" class="chip-list"></div>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <aside class="results-panel">
+        <div class="result-header">
+          <strong id="resultCount">0 個地點</strong>
+          <span id="validationStatus">檢查中</span>
+        </div>
+        <div id="cards" class="cards"></div>
+      </aside>
+      <section class="map-panel" aria-label="互動地圖">
+        <div id="map"></div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="previewDialog" class="preview-dialog">
+    <button id="closePreview" class="close-button" aria-label="關閉預覽" type="button">×</button>
+    <div id="previewContent"></div>
+  </dialog>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="assets/app.js?v=20260710v1"></script>
+</body>
+</html>
