@@ -14,6 +14,78 @@
 
 * { box-sizing: border-box; }
 
+.leaflet-container {
+  overflow: hidden;
+  background: #d8e6df;
+  outline: 0;
+}
+
+.leaflet-pane,
+.leaflet-map-pane,
+.leaflet-tile-pane,
+.leaflet-overlay-pane,
+.leaflet-shadow-pane,
+.leaflet-marker-pane,
+.leaflet-tooltip-pane,
+.leaflet-popup-pane,
+.leaflet-tile-container {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.leaflet-container img.leaflet-tile {
+  width: 256px !important;
+  height: 256px !important;
+  max-width: none !important;
+}
+
+.leaflet-control-container .leaflet-top,
+.leaflet-control-container .leaflet-bottom {
+  position: absolute;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.leaflet-top { top: 0; }
+.leaflet-bottom { bottom: 0; }
+.leaflet-left { left: 0; }
+.leaflet-right { right: 0; }
+
+.leaflet-control {
+  position: relative;
+  z-index: 800;
+  pointer-events: auto;
+  margin: 10px;
+}
+
+.leaflet-popup {
+  position: absolute;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.leaflet-popup-content-wrapper {
+  padding: 1px;
+  text-align: left;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, .2);
+}
+
+.leaflet-popup-content {
+  margin: 12px;
+  line-height: 1.45;
+}
+
 body {
   margin: 0;
   font-family: Arial, "Noto Sans TC", "Microsoft JhengHei", sans-serif;
@@ -226,6 +298,7 @@ input, select {
   object-fit: cover;
   border-radius: 6px;
   background: #e7ece8;
+  display: block;
 }
 
 .card-main { min-width: 0; }
@@ -258,6 +331,29 @@ input, select {
 
 .rating { background: #fff7df; color: #854d0e; }
 .type { background: #e8f7f4; color: var(--accent-dark); }
+
+.cost-line {
+  display: inline-grid;
+  gap: 2px;
+  margin: 0 0 8px;
+  border: 1px solid #d9eadf;
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: #f5fbf8;
+  color: #1f2933;
+  max-width: 100%;
+}
+
+.cost-line span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cost-line strong {
+  color: var(--accent-dark);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
 
 .card-reason {
   margin: 0 0 10px;
@@ -307,8 +403,8 @@ input, select {
 }
 
 .dot-marker {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border: 3px solid #fff;
   border-radius: 50%;
   background: var(--accent);
@@ -393,6 +489,13 @@ input, select {
 }
 
 .info-box strong { overflow-wrap: anywhere; }
+
+.rate-note {
+  margin: 6px 0 14px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
 
 @media (max-width: 1120px) {
   .top-panel,
