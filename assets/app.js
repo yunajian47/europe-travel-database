@@ -1,12 +1,108 @@
+const BANK_RATE_NOTE = "匯率採臺灣銀行 2026/07/10 15:09 牌告賣出價；台銀未直接牌告的小幣別以 EUR 或 USD 牌告賣出價交叉估算，金額進位到新台幣個位數。";
+
+const DIRECT_BOT_RATES = {
+  USD: 32.415,
+  EUR: 37.29,
+  GBP: 44.08,
+  CHF: 40.29,
+  SEK: 3.39
+};
+
+const CURRENCY_RATES = {
+  ...DIRECT_BOT_RATES,
+  DKK: 5.0,
+  NOK: 3.18,
+  PLN: 8.78,
+  CZK: 1.51,
+  HUF: 0.092,
+  RON: 7.34,
+  BGN: 19.07,
+  BAM: 19.07,
+  RSD: 0.318,
+  ALL: 0.38,
+  MKD: 0.606,
+  ISK: 0.262,
+  MDL: 1.89,
+  UAH: 0.78,
+  BYN: 10.7
+};
+
+const CURRENCY_SYMBOLS = {
+  USD: "US$",
+  EUR: "€",
+  GBP: "£",
+  CHF: "CHF",
+  SEK: "SEK",
+  DKK: "DKK",
+  NOK: "NOK",
+  PLN: "PLN",
+  CZK: "CZK",
+  HUF: "HUF",
+  RON: "RON",
+  BGN: "BGN",
+  BAM: "BAM",
+  RSD: "RSD",
+  ALL: "ALL",
+  MKD: "MKD",
+  ISK: "ISK",
+  MDL: "MDL",
+  UAH: "UAH",
+  BYN: "BYN"
+};
+
+const COUNTRY_CURRENCY = {
+  Albania: "ALL",
+  Andorra: "EUR",
+  Austria: "EUR",
+  Belarus: "BYN",
+  Belgium: "EUR",
+  "Bosnia and Herzegovina": "BAM",
+  Bulgaria: "BGN",
+  Croatia: "EUR",
+  Czechia: "CZK",
+  Denmark: "DKK",
+  Estonia: "EUR",
+  Finland: "EUR",
+  France: "EUR",
+  Germany: "EUR",
+  Greece: "EUR",
+  Hungary: "HUF",
+  Iceland: "ISK",
+  Ireland: "EUR",
+  Italy: "EUR",
+  Kosovo: "EUR",
+  Latvia: "EUR",
+  Liechtenstein: "CHF",
+  Lithuania: "EUR",
+  Luxembourg: "EUR",
+  Malta: "EUR",
+  Moldova: "MDL",
+  Monaco: "EUR",
+  Montenegro: "EUR",
+  Netherlands: "EUR",
+  "North Macedonia": "MKD",
+  Norway: "NOK",
+  Poland: "PLN",
+  Portugal: "EUR",
+  Romania: "RON",
+  "San Marino": "EUR",
+  Serbia: "RSD",
+  Slovakia: "EUR",
+  Slovenia: "EUR",
+  Spain: "EUR",
+  Sweden: "SEK",
+  Switzerland: "CHF",
+  Ukraine: "UAH",
+  "United Kingdom": "GBP",
+  "Vatican City": "EUR"
+};
 
 const state = {
   places: [],
   filtered: [],
   map: null,
   markers: new Map(),
-  markerLayer: null,
-  activeCountry: "",
-  activeType: "",
+  markerLayer: null
 };
 
 const els = {
@@ -25,16 +121,20 @@ const els = {
   cards: document.querySelector("#cards"),
   dialog: document.querySelector("#previewDialog"),
   previewContent: document.querySelector("#previewContent"),
-  closePreview: document.querySelector("#closePreview"),
+  closePreview: document.querySelector("#closePreview")
 };
 
-function formatNumber(n) {
-  return new Intl.NumberFormat("zh-Hant").format(n);
+function formatNumber(value) {
+  return new Intl.NumberFormat("zh-Hant").format(value);
 }
 
 function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, char => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
   }[char]));
 }
 
@@ -56,38 +156,157 @@ function uniqueByLocation(places) {
   return dupes;
 }
 
+function detectCostCurrency(cost) {
+  if (/£/.test(cost)) return "GBP";
+  if (/€/.test(cost)) return "EUR";
+  if (/CHF/i.test(cost)) return "CHF";
+  if (/DKK/i.test(cost)) return "DKK";
+  if (/SEK/i.test(cost)) return "SEK";
+  if (/NOK/i.test(cost)) return "NOK";
+  if (/ISK/i.test(cost)) return "ISK";
+  if (/PLN/i.test(cost)) return "PLN";
+  if (/RON/i.test(cost)) return "RON";
+  if (/BGN/i.test(cost)) return "BGN";
+  if (/BAM/i.test(cost)) return "BAM";
+  if (/HUF/i.test(cost)) return "HUF";
+  if (/BYN/i.test(cost)) return "BYN";
+  if (/UAH/i.test(cost)) return "UAH";
+  if (/MDL/i.test(cost)) return "MDL";
+  if (/RSD/i.test(cost)) return "RSD";
+  if (/ALL/i.test(cost)) return "ALL";
+  if (/MKD/i.test(cost)) return "MKD";
+  if (/USD|US\$/i.test(cost)) return "USD";
+  return null;
+}
+
+function parseCostRange(cost) {
+  const free = /free/i.test(cost) || /免費/.test(cost);
+  const nums = cost.match(/\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+  if (free) return nums.length > 0 ? [0, nums[0]] : [0, 0];
+  if (nums.length === 0) return null;
+  return nums.length === 1 ? [nums[0], nums[0]] : [nums[0], nums[1]];
+}
+
+function formatLocalAmount(code, value) {
+  if (value === 0) return `${CURRENCY_SYMBOLS[code] ?? code}0`;
+  const rounded = value >= 100 ? Math.ceil(value) : Math.ceil(value * 10) / 10;
+  return `${CURRENCY_SYMBOLS[code] ?? code}${formatNumber(rounded)}`;
+}
+
+function costEstimate(place) {
+  const original = place.cost || "";
+  const localCode = COUNTRY_CURRENCY[place.country] || detectCostCurrency(original) || "EUR";
+  const sourceCode = detectCostCurrency(original) || localCode;
+  const range = parseCostRange(original);
+  const localRate = CURRENCY_RATES[localCode];
+  const sourceRate = CURRENCY_RATES[sourceCode];
+  const isDirectBot = Boolean(DIRECT_BOT_RATES[localCode]);
+
+  if (!range || !sourceRate || !localRate) {
+    return {
+      compact: `當地：${original || "依現場"}｜台幣：依現場`,
+      local: original || "依現場",
+      twd: "依現場",
+      note: BANK_RATE_NOTE
+    };
+  }
+
+  const twdRange = range.map(amount => Math.ceil(amount * sourceRate));
+  const localRange = sourceCode === localCode
+    ? range
+    : twdRange.map(amount => amount / localRate);
+  const localText = localRange[0] === localRange[1]
+    ? formatLocalAmount(localCode, localRange[0])
+    : `${formatLocalAmount(localCode, localRange[0])}-${formatLocalAmount(localCode, localRange[1]).replace(CURRENCY_SYMBOLS[localCode] ?? localCode, "")}`;
+  const twdText = twdRange[0] === twdRange[1]
+    ? `NT$${formatNumber(twdRange[0])}`
+    : `NT$${formatNumber(twdRange[0])}-${formatNumber(twdRange[1])}`;
+  const note = isDirectBot
+    ? `${localCode} 採臺銀賣出價換算。`
+    : `${localCode} 為台銀未直接牌告幣別，台幣金額由台銀 EUR/USD 賣出價交叉估算。`;
+
+  return {
+    compact: `${localText}｜${twdText}`,
+    local: localText,
+    twd: twdText,
+    note
+  };
+}
+
+function photoSvg(place) {
+  const palette = {
+    landmark: ["#0f766e", "#93c5fd"],
+    museum: ["#1d4ed8", "#bfdbfe"],
+    church: ["#0f766e", "#ccfbf1"],
+    castle: ["#7e22ce", "#e9d5ff"],
+    nature: ["#15803d", "#bbf7d0"],
+    "coast-lake-mountain": ["#0369a1", "#bae6fd"],
+    "thermal-bath": ["#0e7490", "#a5f3fc"],
+    market: ["#be123c", "#fecdd3"],
+    restaurant: ["#b45309", "#fed7aa"],
+    "cafe-dessert": ["#a16207", "#fde68a"],
+    bar: ["#7c3aed", "#ddd6fe"],
+    "local-shop": ["#334155", "#cbd5e1"],
+    "old-town": ["#92400e", "#fef3c7"]
+  }[place.type] || ["#0f766e", "#dff5f0"];
+  const title = escapeHtml(place.name).slice(0, 42);
+  const sub = escapeHtml(`${place.country} / ${place.region}`).slice(0, 48);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480" viewBox="0 0 720 480">
+    <defs>
+      <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+        <stop stop-color="${palette[0]}" offset="0"/>
+        <stop stop-color="${palette[1]}" offset="1"/>
+      </linearGradient>
+    </defs>
+    <rect width="720" height="480" fill="url(#g)"/>
+    <circle cx="590" cy="90" r="90" fill="rgba(255,255,255,.28)"/>
+    <circle cx="92" cy="388" r="128" fill="rgba(255,255,255,.18)"/>
+    <path d="M64 322 C180 210 264 236 344 164 C432 84 524 118 660 52 L660 480 L64 480 Z" fill="rgba(255,255,255,.24)"/>
+    <text x="48" y="250" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="white">${title}</text>
+    <text x="50" y="302" font-family="Arial, sans-serif" font-size="25" fill="rgba(255,255,255,.9)">${sub}</text>
+  </svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
 function setupMap() {
   state.map = L.map("map", {
     zoomControl: true,
     preferCanvas: true,
+    worldCopyJump: false,
+    maxBounds: [[32, -28], [72, 45]],
+    maxBoundsViscosity: 0.25
   }).setView([50.8, 10.4], 4);
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
+    minZoom: 3,
     attribution: "&copy; OpenStreetMap contributors",
+    crossOrigin: true
   }).addTo(state.map);
 
   state.markerLayer = L.layerGroup().addTo(state.map);
-  setTimeout(() => state.map.invalidateSize(), 100);
+  requestAnimationFrame(() => state.map.invalidateSize(true));
+  setTimeout(() => state.map.invalidateSize(true), 300);
+  window.addEventListener("resize", () => state.map.invalidateSize(true));
 }
 
 function markerIcon(place) {
   const color = {
-    "nature": "#15803d",
+    nature: "#15803d",
     "coast-lake-mountain": "#0369a1",
-    "restaurant": "#b45309",
+    restaurant: "#b45309",
     "cafe-dessert": "#a16207",
-    "bar": "#7c3aed",
-    "market": "#be123c",
-    "museum": "#1d4ed8",
-    "castle": "#9333ea",
-    "church": "#0f766e",
+    bar: "#7c3aed",
+    market: "#be123c",
+    museum: "#1d4ed8",
+    castle: "#9333ea",
+    church: "#0f766e"
   }[place.type] || "#0f766e";
   return L.divIcon({
-    className: "",
+    className: "custom-marker",
     html: `<div class="dot-marker" style="background:${color}"></div>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
   });
 }
 
@@ -97,18 +316,16 @@ function renderStats() {
   els.statsGrid.innerHTML = [
     ["總地點數", state.places.length],
     ["國家/地區數", countries.size],
-    ["分類數", types.size],
+    ["分類數", types.size]
   ].map(([label, value]) => `<div class="stat"><strong>${formatNumber(value)}</strong><span>${label}</span></div>`).join("");
 }
 
 function fillSelects() {
   const countries = [...new Set(state.places.map(p => p.country))].sort((a, b) => a.localeCompare(b));
   const types = [...new Map(state.places.map(p => [p.type, p.typeLabel])).entries()].sort((a, b) => a[1].localeCompare(b[1], "zh-Hant"));
-
   els.countryFilter.innerHTML = `<option value="">全部國家/地區</option>` + countries.map(country =>
     `<option value="${escapeHtml(country)}">${escapeHtml(country)}</option>`
   ).join("");
-
   els.typeFilter.innerHTML = `<option value="">全部類型</option>` + types.map(([type, label]) =>
     `<option value="${escapeHtml(type)}">${escapeHtml(label)}</option>`
   ).join("");
@@ -127,7 +344,6 @@ function countsBy(key) {
 function renderChips() {
   const countryCounts = Object.values(countsBy("country")).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
   const typeCounts = Object.values(countsBy("type")).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "zh-Hant"));
-
   els.countryChips.innerHTML = countryCounts.map(item =>
     `<button class="chip ${els.countryFilter.value === item.value ? "active" : ""}" data-country="${escapeHtml(item.value)}">${escapeHtml(item.label)} ${item.count}</button>`
   ).join("");
@@ -167,25 +383,31 @@ function applyFilters() {
 
 function renderCards() {
   els.resultCount.textContent = `${formatNumber(state.filtered.length)} 個地點`;
-  els.cards.innerHTML = state.filtered.map(place => `
-    <article class="place-card" id="card-${place.id}">
-      <img src="${place.photo}" alt="${escapeHtml(place.name)}" loading="lazy">
-      <div class="card-main">
-        <h2 class="card-title">${escapeHtml(place.name)}</h2>
-        <div class="meta-line">
-          <span class="pill type">${escapeHtml(place.typeLabel)}</span>
-          <span class="pill">${escapeHtml(place.country)} / ${escapeHtml(place.region)}</span>
-          <span class="pill rating">★ ${place.rating} · ${formatNumber(place.reviewCount)}</span>
-          <span class="pill">${escapeHtml(place.cost)}</span>
+  els.cards.innerHTML = state.filtered.map(place => {
+    const cost = costEstimate(place);
+    return `
+      <article class="place-card" id="card-${place.id}">
+        <img src="${photoSvg(place)}" alt="${escapeHtml(place.name)}" loading="lazy">
+        <div class="card-main">
+          <h2 class="card-title">${escapeHtml(place.name)}</h2>
+          <div class="meta-line">
+            <span class="pill type">${escapeHtml(place.typeLabel)}</span>
+            <span class="pill">${escapeHtml(place.country)} / ${escapeHtml(place.region)}</span>
+            <span class="pill rating">★ ${place.rating} · ${formatNumber(place.reviewCount)}</span>
+          </div>
+          <div class="cost-line" title="${escapeHtml(cost.note)}">
+            <span>${escapeHtml(cost.local)}</span>
+            <strong>${escapeHtml(cost.twd)}</strong>
+          </div>
+          <p class="card-reason">${escapeHtml(place.reason)}</p>
+          <div class="card-actions">
+            <button class="primary-button" type="button" data-preview="${place.id}">預覽</button>
+            <a class="link-button" href="${place.googleMapsUrl}" target="_blank" rel="noopener">Google Maps</a>
+          </div>
         </div>
-        <p class="card-reason">${escapeHtml(place.reason)}</p>
-        <div class="card-actions">
-          <button class="primary-button" type="button" data-preview="${place.id}">預覽</button>
-          <a class="link-button" href="${place.googleMapsUrl}" target="_blank" rel="noopener">Google Maps</a>
-        </div>
-      </div>
-    </article>
-  `).join("");
+      </article>
+    `;
+  }).join("");
 }
 
 function renderMarkers() {
@@ -195,10 +417,12 @@ function renderMarkers() {
 
   for (const place of state.filtered) {
     const marker = L.marker([place.lat, place.lng], { icon: markerIcon(place) });
+    const cost = costEstimate(place);
     marker.bindPopup(`
       <p class="popup-title">${escapeHtml(place.name)}</p>
       <div>${escapeHtml(place.country)} / ${escapeHtml(place.typeLabel)}</div>
       <div>★ ${place.rating} · ${formatNumber(place.reviewCount)}</div>
+      <div>${escapeHtml(cost.compact)}</div>
       <button class="popup-button" type="button" data-popup-preview="${place.id}">預覽</button>
     `);
     marker.on("popupopen", () => {
@@ -211,16 +435,18 @@ function renderMarkers() {
   }
 
   if (bounds.length > 0) {
-    state.map.fitBounds(bounds, { padding: [28, 28], maxZoom: 6 });
+    state.map.fitBounds(bounds, { padding: [28, 28], maxZoom: 5.5 });
   }
-  setTimeout(() => state.map.invalidateSize(), 60);
+  setTimeout(() => state.map.invalidateSize(true), 80);
+  setTimeout(() => state.map.invalidateSize(true), 400);
 }
 
 function openPreview(id) {
   const place = state.places.find(item => item.id === id);
   if (!place) return;
+  const cost = costEstimate(place);
   els.previewContent.innerHTML = `
-    <img class="preview-image" src="${place.photo}" alt="${escapeHtml(place.name)}">
+    <img class="preview-image" src="${photoSvg(place)}" alt="${escapeHtml(place.name)}">
     <div class="preview-body">
       <h2>${escapeHtml(place.name)}</h2>
       <div class="meta-line">
@@ -230,11 +456,12 @@ function openPreview(id) {
       </div>
       <p>${escapeHtml(place.description)}</p>
       <div class="preview-grid">
-        <div class="info-box"><span>花費估算</span><strong>${escapeHtml(place.cost)}</strong></div>
+        <div class="info-box"><span>當地常用貨幣</span><strong>${escapeHtml(cost.local)}</strong></div>
+        <div class="info-box"><span>約合新台幣</span><strong>${escapeHtml(cost.twd)}</strong></div>
         <div class="info-box"><span>座標</span><strong>${place.lat.toFixed(5)}, ${place.lng.toFixed(5)}</strong></div>
         <div class="info-box"><span>推薦理由</span><strong>${escapeHtml(place.reason)}</strong></div>
-        <div class="info-box"><span>資料提醒</span><strong>${escapeHtml(place.dataNote)}</strong></div>
       </div>
+      <p class="rate-note">${escapeHtml(cost.note)} ${escapeHtml(BANK_RATE_NOTE)}</p>
       <div class="card-actions">
         <button class="primary-button" type="button" id="focusMapBtn">在地圖查看</button>
         <a class="link-button" href="${place.googleMapsUrl}" target="_blank" rel="noopener">開啟 Google Maps</a>
@@ -248,6 +475,7 @@ function openPreview(id) {
     const marker = state.markers.get(place.id);
     if (marker) marker.openPopup();
     document.querySelector(".map-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => state.map.invalidateSize(true), 300);
   });
 }
 
@@ -307,7 +535,7 @@ function bindEvents(data) {
 
 async function init() {
   setupMap();
-  const response = await fetch(`assets/places.json?v=${Date.now()}`);
+  const response = await fetch(`assets/places.json?v=20260710v2`);
   const data = await response.json();
   state.places = data.places;
   renderStats();
